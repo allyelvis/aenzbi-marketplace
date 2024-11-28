@@ -1,0 +1,82 @@
+version: '1.0'
+
+pipelines:
+  update-and-deploy:
+    steps:
+      - name: Pull Latest Changes
+        type: shell
+        command: |
+          if [ ! -d "./aenzbi-marketplace" ]; then
+            echo "Cloning repository..."
+            git clone https://github.com/AllyElvis/aenzbi-marketplace.git
+          fi
+          cd aenzbi-marketplace
+          git pull origin main
+
+      - name: Sync Files
+        type: shell
+        command: |
+          echo "Syncing new files..."
+          cat > ./pages/about.js <<EOL
+          export default function About() {
+            return (
+              <div className="p-8">
+                <h1 className="text-4xl font-bold">About Aenzbi Marketplace</h1>
+                <p>This platform allows users to deploy and purchase innovative applications.</p>
+              </div>
+            );
+          }
+          EOL
+
+          cat > ./pages/index.js <<EOL
+          import Link from 'next/link';
+
+          export default function Home() {
+            return (
+              <div className="p-8">
+                <h1 className="text-4xl font-bold">Welcome to Aenzbi Marketplace</h1>
+                <p>Deploy and purchase apps directly from our platform.</p>
+                <div>
+                  <Link href="/marketplace">
+                    <a className="text-blue-500 underline">Visit Marketplace</a>
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/about">
+                    <a className="text-blue-500 underline">About Us</a>
+                  </Link>
+                </div>
+              </div>
+            );
+          }
+          EOL
+
+      - name: Commit Changes
+        type: shell
+        command: |
+          cd aenzbi-marketplace
+          git add .
+          git commit -m "Update: Added About Us page and updated homepage"
+
+      - name: Push Changes
+        type: shell
+        command: |
+          cd aenzbi-marketplace
+          git push origin main
+
+      - name: Trigger Redeployment
+        type: http
+        method: POST
+        url: https://api.github.com/repos/AllyElvis/aenzbi-marketplace/actions/workflows/deploy.yml/dispatches
+        headers:
+          Authorization: Bearer ${{ GITHUB_TOKEN }}
+          Accept: application/vnd.github.v3+json
+        body: |
+          {
+            "ref": "main"
+          }
+
+      - name: Confirm Deployment
+        type: shell
+        command: |
+          echo "Deployment triggered. Visit the website at: https://AllyElvis.github.io/aenzbi-marketplace"
